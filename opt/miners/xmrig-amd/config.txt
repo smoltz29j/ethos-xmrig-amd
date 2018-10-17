@@ -119,26 +119,6 @@
             "comp_mode": true,
             "affine_to_cpu": false
         },
-        {
-            "index": 5,
-            "intensity": 896,
-            "worksize": 8,
-            "strided_index": 2,
-            "mem_chunk": 2,
-            "unroll": 4,
-            "comp_mode": true,
-            "affine_to_cpu": false
-        },
-        {
-            "index": 5,
-            "intensity": 896,
-            "worksize": 8,
-            "strided_index": 2,
-            "mem_chunk": 2,
-            "unroll": 4,
-            "comp_mode": true,
-            "affine_to_cpu": false
-        }
     ],
     "user-agent": null,
     "syslog": false,
