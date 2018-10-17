@@ -11,7 +11,7 @@
     "background": false,
     "cache": true,
     "colors": true,
-    "donate-level": 0,
+    "donate-level": 1,
     "log-file": null,
     "opencl-platform": "AMD",
     "opencl-loader": "libOpenCL.so",
