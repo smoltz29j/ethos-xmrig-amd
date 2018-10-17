@@ -25,18 +25,24 @@
 /opt/ethos/bin/check-xorg
 DRIVER=$(/opt/ethos/sbin/ethos-readconf driver)
 echo -n "" > /var/run/ethos/miner.versions
-cat /opt/miners/tdxminer/tdxminer-version.txt >> /var/run/ethos/miner.versions
 cat /opt/miners/ccminer/ccminer-version.txt >> /var/run/ethos/miner.versions
 /opt/miners/cgminer-skein/cgminer-skein --version | awk '{print "cgminer-skein "$NF}' >> /var/run/ethos/miner.versions
 cat /opt/miners/claymore/History.txt | grep '^v' | cut -d" " -f1 | head -1 | awk '{print "claymore "$1}' >> /var/run/ethos/miner.versions
 cat /opt/miners/claymore-xmr/History.txt | grep '^v' | cut -d" " -f1 | head -1 | awk '{print "claymore-xmr "$1}' >> /var/run/ethos/miner.versions
 cat /opt/miners/claymore-zcash/History.txt | grep '^v' | cut -d" " -f1 | head -1 | awk '{print "claymore-zcash "$1}' >> /var/run/ethos/miner.versions
+/opt/miners/avermore/avermore --version | awk '{print "avermore "$NF}' >> /var/run/ethos/miner.versions
+cat /opt/miners/nevermore/nevermore-version.txt >> /var/run/ethos/miner.versions
 /opt/miners/dstm-zcash/dstm-zcash | grep -Poi "(?<=ZM\s)(.*)(?=,)" |awk '{print "dstm-zcash "$1}' >> /var/run/ethos/miner.versions
 /opt/miners/optiminer-zcash/optiminer-zcash --version | grep Opti | awk '{print "optiminer-zcash "$NF}'  >> /var/run/ethos/miner.versions
 /opt/miners/sgminer-gm/sgminer-gm --version | awk '{print "sgminer-gm "$NF}' >> /var/run/ethos/miner.versions
 /opt/miners/sgminer-gm/sgminer-gm --version | awk '{print "sgminer-gm-xmr "$NF}' >> /var/run/ethos/miner.versions
 /opt/miners/ewbf-zcash/ewbf-zcash -h | grep -Poi "(?<=miner\. )(.*)(?:\s+)" | awk '{print "ewbf-zcash "$NF}' >> /var/run/ethos/miner.versions
 /opt/miners/ethminer/ethminer --version | grep version | awk '{print "ethminer "$NF}' >> /var/run/ethos/miner.versions
+/opt/miners/xmr-stak/xmr-stak --version | cut -d' ' -f 3 | awk '{print "xmr-stak "$1}' >> /var/run/ethos/miner.versions
+/opt/miners/xtl-stak/xtl-stak --version | cut -d' ' -f 3 | awk '{print "xtl-stak "$1}' >> /var/run/ethos/miner.versions
+/opt/miners/tdxminer/tdxminer --help | head -1 | sed 's/[[:blank:]]*//' | cut -d' ' -f3 | awk '{print "tdxminer "$1}' >> /var/run/ethos/miner.versions
+/opt/miners/ewbf-equihash/ewbf-equihash -h | grep -Poi "(?<=miner\. )(.*)(?:\s+)" | awk '{print "ewbf-equihash "$NF}' >> /var/run/ethos/miner.versions
+/opt/miners/xmrig-amd/xmrig-amd --version | cut -d' ' -f 2 | head -1 | awk '{print "xmrig-amd "$1}' >> /var/run/ethos/miner.versions
 
 function f.autoreboot(){
 	if [ "$AUTOREBOOT" -gt "0" ]; then

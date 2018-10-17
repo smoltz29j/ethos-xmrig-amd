@@ -1,0 +1,146 @@
+{
+    "api": {
+        "port": 12345,
+        "access-token": null,
+        "id": null,
+        "worker-id": null,
+        "ipv6": false,
+        "restricted": true
+    },
+    "autosave": true,
+    "background": false,
+    "cache": true,
+    "colors": true,
+    "donate-level": 1,
+    "log-file": null,
+    "opencl-platform": "AMD",
+    "opencl-loader": "libOpenCL.so",
+    "print-time": 60,
+    "retries": 5,
+    "retry-pause": 5,
+    "threads": [
+        {
+            "index": 0,
+            "intensity": 896,
+            "worksize": 16,
+            "strided_index": 2,
+            "mem_chunk": 2,
+            "unroll": 4,
+            "comp_mode": true,
+            "affine_to_cpu": false
+        },
+        {
+            "index": 0,
+            "intensity": 896,
+            "worksize": 8,
+            "strided_index": 2,
+            "mem_chunk": 2,
+            "unroll": 4,
+            "comp_mode": true,
+            "affine_to_cpu": false
+        },
+        {
+            "index": 1,
+            "intensity": 896,
+            "worksize": 16,
+            "strided_index": 2,
+            "mem_chunk": 2,
+            "unroll": 4,
+            "comp_mode": true,
+            "affine_to_cpu": false
+        },
+        {
+            "index": 1,
+            "intensity": 896,
+            "worksize": 8,
+            "strided_index": 2,
+            "mem_chunk": 2,
+            "unroll": 4,
+            "comp_mode": true,
+            "affine_to_cpu": false
+        },
+        {
+            "index": 2,
+            "intensity": 896,
+            "worksize": 16,
+            "strided_index": 2,
+            "mem_chunk": 2,
+            "unroll": 4,
+            "comp_mode": true,
+            "affine_to_cpu": false
+        },
+        {
+            "index": 2,
+            "intensity": 896,
+            "worksize": 8,
+            "strided_index": 2,
+            "mem_chunk": 2,
+            "unroll": 4,
+            "comp_mode": true,
+            "affine_to_cpu": false
+        },
+        {
+            "index": 3,
+            "intensity": 896,
+            "worksize": 16,
+            "strided_index": 2,
+            "mem_chunk": 2,
+            "unroll": 4,
+            "comp_mode": true,
+            "affine_to_cpu": false
+        },
+        {
+            "index": 3,
+            "intensity": 896,
+            "worksize": 8,
+            "strided_index": 2,
+            "mem_chunk": 2,
+            "unroll": 4,
+            "comp_mode": true,
+            "affine_to_cpu": false
+        },
+        {
+            "index": 4,
+            "intensity": 896,
+            "worksize": 16,
+            "strided_index": 2,
+            "mem_chunk": 2,
+            "unroll": 4,
+            "comp_mode": true,
+            "affine_to_cpu": false
+        },
+        {
+            "index": 4,
+            "intensity": 896,
+            "worksize": 8,
+            "strided_index": 2,
+            "mem_chunk": 2,
+            "unroll": 4,
+            "comp_mode": true,
+            "affine_to_cpu": false
+        },
+        {
+            "index": 5,
+            "intensity": 896,
+            "worksize": 8,
+            "strided_index": 2,
+            "mem_chunk": 2,
+            "unroll": 4,
+            "comp_mode": true,
+            "affine_to_cpu": false
+        },
+        {
+            "index": 5,
+            "intensity": 896,
+            "worksize": 8,
+            "strided_index": 2,
+            "mem_chunk": 2,
+            "unroll": 4,
+            "comp_mode": true,
+            "affine_to_cpu": false
+        }
+    ],
+    "user-agent": null,
+    "syslog": false,
+    "watch": false
+}

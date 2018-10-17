@@ -3,7 +3,7 @@
 PROXYINSTANCE=$(pgrep -fc "python /opt/eth-proxy/eth-proxy.py" )
 sudo killall -9 sa-solver 2> /dev/null
 sudo killall -9 sgminer-gm 2> /dev/null
-ps uax| egrep "ccminer|cgminer-skein|claymore|dstm-zcash|ethminer|ewbf-zcash|sgminer-gm|optiminer-zcash|tdxminer" | grep -v "curl" | grep -v "update-miner" | grep -v grep | awk '{print $2}' | sudo xargs kill -9
+ps uax| egrep "avermore|ccminer|cgminer-skein|claymore|dstm-zcash|ethminer|ewbf-equihash|ewbf-zcash|nevermore|optiminer-zcash|sgminer-gm|tdxminer|xmr-stak|xtl-stak|xmrig-amg" | grep -v "curl" | grep -v "update-miner" | grep -v grep | awk '{print $2}' | sudo xargs kill -9
 if [ "$EUID" -eq "0" ]; then
 	su - ethos -c "screen -wipe" 2>&1 >/dev/null
 else

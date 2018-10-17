@@ -266,7 +266,17 @@ function setup_pools($miner)
 {
 	global $pool_syntax;
 
-	$profile = ((isset($pool_syntax[$miner])) ? $miner : "default");
+  $miner_syntax = $miner;
+
+  switch($miner_syntax) {
+	  case "xmr-stak":
+	  case "xtl-stak":
+	  case "ewbf-equihash":
+      $miner_syntax = "ewbf-zcash";
+      break;
+	}
+
+  $profile = ((isset($pool_syntax[$miner_syntax])) ? $miner_syntax : "default");
 
 	foreach (range(1,4) as $checkpool) {
 		if (($pools[$checkpool] = trim(`/opt/ethos/sbin/ethos-readconf proxypool$checkpool`))) {
@@ -304,6 +314,7 @@ function check_miner()
 function start_miner()
 {
 	$miner = trim(`/opt/ethos/sbin/ethos-readconf miner`);
+	$mine_with = "";
 	
 	check_miner();
 	$status = check_status();
@@ -311,10 +322,8 @@ function start_miner()
 	if (!$status) {
 			return false;
 	}
-	
 
 	//global vars
-	
 	$driver = trim(`/opt/ethos/sbin/ethos-readconf driver`);
 	$flags = trim(`/opt/ethos/sbin/ethos-readconf flags`);
 	$extraflags = ""; // no extra flags by default
@@ -362,6 +371,7 @@ function start_miner()
 
 	//begin dstm-zcash configuration generation
 	if ($miner == "dstm-zcash") {
+		
 		$externalapi = trim(`/opt/ethos/sbin/ethos-readconf externalapi`);
 		$api = "--telemetry 127.0.0.1:2222";
 		if ($externalapi == "enabled" ){
@@ -470,13 +480,18 @@ function start_miner()
 	
 	//begin ccminer config generation
 	
-	if (preg_match("/ccminer/",$miner)){
+	if (preg_match("/(ccminer|nevermore)/",$miner)){
+		
 		$devices = implode(",",select_gpus());
 		if(trim(`/opt/ethos/sbin/ethos-readconf selectedgpus`)){
 			$mine_with = "-d $devices";
 		}
-		if(!preg_match("/-a/",$flags)){
-			$flags .= " -a cryptonight ";
+		
+		if($miner == "ccminer" && !preg_match("/-a/",$flags)){
+			$flags .= " -a monero ";
+		}
+		if($miner == "nevermore" && !preg_match("/-a/",$flags)){
+			$flags .= " -a x16r ";
 		}
 		$pools="-o $proxypool1 -u $proxywallet$worker -p $poolpass1 ";
 		if($proxypool2){
@@ -484,22 +499,8 @@ function start_miner()
 		}
 	}
 	
-
-        //begin tdxminer config generation
-        
-        if (preg_match("/tdxminer/",$miner)){
-                $devices = implode(",",select_gpus());
-                if(trim(`/opt/ethos/sbin/ethos-readconf selectedgpus`)){
-                        $mine_with = "-d $devices";
-                }
-                if(!preg_match("/-a/",$flags)){
-                        $flags .= " -a lyra2z ";
-                }
-                $pools="-o $proxypool1 -u $proxywallet$worker -p $poolpass1 ";
-        }
-	
-	// begin cgminer-skein/sgminer-gm/sgminer-gm-xmr config generation
-	if (preg_match("/(s|c)(gminer)/",$miner)){
+	// begin avermore config generation
+	if (preg_match("/avermore/",$miner)){
 		$devices = implode(",",select_gpus());
 		if(trim(`/opt/ethos/sbin/ethos-readconf selectedgpus`)){
 			$mine_with = "-d $devices";
@@ -508,7 +509,75 @@ function start_miner()
 		if (!$maxtemp) {
 			$maxtemp = "85";
 		}
-		if($miner == "sgminer-gm"){
+		
+		//algorithm default to x16r
+
+		if(!preg_match("/(-k|--algorithm|--kernel)/",$config_string)) {
+			$config_string .= " -k x16r";
+		}
+		//worksize default to 256
+		if(!preg_match("/(-w|--worksize)/",$config_string)) {
+			$config_string .= " -w 256";
+		}
+		//intensity default to XI 1024
+		if(!preg_match("/(-I|--intensity|-X|--xintensity|--rawintensity)/",$config_string)) {
+			$config_string .= " -X 1024";
+		}
+		//gpu-threads default to 1
+		if(!preg_match("/(-g|--gpu-threads)/",$config_string)) {
+			$config_string .= " -g 1";
+		}
+
+		//api config
+		if(!preg_match("/--api-listen/",$config_string)) {
+				$api_config .= " --api-listen";
+		}
+		if(!preg_match("/--api-allow W\\:127.0.0.1/",$config_string)) {
+				$api_config .= " --api-allow W:127.0.0.1";
+		}
+		if(!preg_match("/--api-port/",$config_string)) {
+				$api_config .= " --api-port 4028";
+		}
+		else {
+				$api_config = preg_replace("/--api-port \d+/", "--api-port $apiport", $api_config);
+		}
+		
+		//pools config
+		$pools = " -o $proxypool1 -u $proxywallet$worker -p $poolpass1 ";
+		if($proxypool2) {
+			$pools .= " -o $proxypool2 -u $proxywallet$worker -p $poolpass2 ";
+		}
+		if($proxypool3) {
+			$pools .= " -o $proxypool3 -u $proxywallet$worker -p $poolpass3 ";
+		}
+		if($proxypool4){
+			$pools .= " -o $proxypool4 -u $proxywallet$worker -p $poolpass4 ";
+		}
+		
+		//overheat prevention
+		if(!preg_match("/--temp-cutoff/",$config_string)) {
+			$config_string .= " --temp-cutoff $maxtemp";
+		}
+		if(!preg_match("/--temp-overheat/",$config_string)) {
+			$config_string .= " --temp-overheat $maxtemp";
+		}
+		
+		$config_string = "$config_string $pools $api_config $mine_with";
+	}
+	
+	// begin cgminer-skein/sgminer-gm/sgminer-gm-xmr config generation
+	if (preg_match("/(sgminer|cgminer)/",$miner)){
+
+		
+		$devices = implode(",",select_gpus());
+		if(trim(`/opt/ethos/sbin/ethos-readconf selectedgpus`)){
+			$mine_with = "-d $devices";
+		}
+		$maxtemp = trim(shell_exec("/opt/ethos/sbin/ethos-readconf maxtemp"));
+		if (!$maxtemp) {
+			$maxtemp = "85";
+		}
+		if($miner == "sgminer-gm") {
 			$config_string = file_get_contents("/home/ethos/sgminer.stub.conf");
 		} else {
 			$config_string = file_get_contents("/home/ethos/".$miner.".stub.conf");
@@ -528,6 +597,7 @@ function start_miner()
 
 	//begin common claymore buildup
 	if (preg_match("/claymore/",$miner)){
+		
 		// import legacy stub -> flags configuration for remote conf users first.
 		$stubprefix = trim(@file_get_contents("/home/ethos/$miner.flags"));
 		$config_string = trim(`/opt/ethos/sbin/ethos-readconf flags`);
@@ -538,8 +608,8 @@ function start_miner()
 			}
 		}
 		$devices = implode("",$device_array);
-		if(trim(`/opt/ethos/sbin/ethos-readconf selectedgpus`)){
-			$mine_with = "-di $devices";
+		if(trim(`/opt/ethos/sbin/ethos-readconf selectedgpus`) != ""){
+			$mine_with = "-di $devices -altnum 2 ";
 		}
 		$maxtemp = trim(shell_exec("/opt/ethos/sbin/ethos-readconf maxtemp"));
 		if (!$maxtemp) {
@@ -671,43 +741,149 @@ function start_miner()
 	}
 	//begin ewbf-zcash configuration
 	
-	if ($miner == "ewbf-zcash") {
+	if (preg_match("/ewbf-(zcash|equihash)/", $miner)) {
 		
 		delete_old_api_port();
 		$apiport = select_api_port();
 		$devices = implode(" ",select_gpus());
-		$config_string = file_get_contents("/opt/ethos/etc/ewbf-zcash.conf");
-		$config_string = str_replace("DEVICES",$devices,$config_string);
-		$config_string = str_replace("APIPORT",$apiport,$config_string);
-		$maxtemp = trim(shell_exec("/opt/ethos/sbin/ethos-readconf maxtemp"));
-		if (!$maxtemp) {
+
+		$config_string = file_get_contents("/opt/ethos/etc/".$miner.".conf");
+		$config_string = str_replace("DEVICES", $devices, $config_string);
+		$config_string = str_replace("APIPORT", $apiport, $config_string);
+
+		if (!($maxtemp = trim(shell_exec("/opt/ethos/sbin/ethos-readconf maxtemp")))) {
 			$maxtemp = "85";
 		}
+
+		$config_string = str_replace("MAXTEMP",$maxtemp,$config_string);
+
+		//new flags with ewbf-equihash
+		if ($miner == "ewbf-equihash") {
+			//get algo
+		  if(preg_match("/--algo (.*)\b/", $flags, $matches)) {
+		  	$algo = $matches[1];
+	  	} else {
+		    $algo = "192_7";
+	  	}
+
+	  	//get equihash pow string
+		if(preg_match("/--pers (.*)\b/", $flags, $matches)) {
+		  	$pers = $matches[1];
+	  	} else {
+		    $pers = "ZERO_PoW";
+	  	}
+
+			$config_string = str_replace("ALGO_STRING", $algo, $config_string);
+			$config_string = str_replace("PERS_STRING", $pers, $config_string);
+		}
+
 		for ($i = 1; $i <= 4; $i++){
 			if(${'proxypool'.$i}) {
 				preg_match("/(.*):(\d+)/", ${'proxypool'.$i}, $pool_split);
 				$config_string = $config_string . "\n[server]\nserver " . $pool_split[1] . "\nport " . $pool_split[2] . "\nuser " . $proxywallet . $worker . "\npass " . ${'poolpass'.$i} . "\n";
 			}
 		}
-		$config_string = str_replace("MAXTEMP",$maxtemp,$config_string);
-		file_put_contents("/var/run/ethos/ewbf-zcash.conf",$config_string);
 
+		file_put_contents("/var/run/ethos/".$miner.".conf", $config_string);
 	}
 
 			
 	//begin optiminer-zcash configuration
 	
 	if ($miner == "optiminer-zcash") {
-				$optiminerversion = trim(`grep -Poi "(?<=optiminer-zcash v)(.*)" /var/run/ethos/miner.versions`);
-				
-				$devices = implode(" -d ",select_gpus());
-				$extraflags = trim(`/opt/ethos/sbin/ethos-readconf flags`);
-				$mine_with = "-d $devices";
-				if(($optiminerversion != "1.7.0") && (!preg_match("/-a/",$extraflags))){
-					$extraflags .= " -a equihash200_9 ";
-				}
+		
+		$optiminerversion = trim(`grep -Poi "(?<=optiminer-zcash v)(.*)" /var/run/ethos/miner.versions`);
+
+		$devices = implode(" -d ",select_gpus());
+		$extraflags = trim(`/opt/ethos/sbin/ethos-readconf flags`);
+		$mine_with = "-d $devices";
+		
+		if(($optiminerversion != "1.7.0") && (!preg_match("/-a/",$extraflags))){
+			$extraflags .= " -a equihash200_9 ";
+		}
 	}
-	
+
+	/*******************************
+	* XMR/XTL-STAK
+	********************************/
+	if (preg_match("/(xmr|xtl)-stak/",$miner)) {
+		/*
+		$devices = implode(",",select_gpus());
+		if(trim(`/opt/ethos/sbin/ethos-readconf selectedgpus`)){
+			$mine_with = "-d $devices";
+		}*/
+
+		if(!preg_match("/--currency/",$flags)) {
+			$flags .= " --currency monero7 ";
+		}
+
+		if(!preg_match("/--cpu/",$flags)) {
+			$flags .= " --noCPU ";
+		}
+
+		$tworker = trim($worker, ". ");
+		//if there is a worker name, add the -r option
+		if ($tworker != "") {
+			$tworker = "-r " . $tworker;
+		}
+		$pools="-o $proxypool1 -u $proxywallet  $tworker -p $poolpass1 ";
+
+		if($proxypool2){
+			$pools .= " -o $proxypool2 -u $proxywallet $tworker -p $poolpass2 ";
+		}
+
+		//delete cache files and copy default configs
+		shell_exec("rm /var/run/ethos/".$miner."*.txt");
+		shell_exec("su - ethos -c \"cp /opt/ethos/etc/xmr-stak-config.txt /var/run/ethos/$miner-config.txt\"");
+		shell_exec("su - ethos -c \"cp /opt/ethos/etc/xmr-stak-pools.txt /var/run/ethos/$miner-pools.txt\"");
+
+		if($driver == "nvidia"){
+			$config_string .= " --noAMD --nvidia /var/run/ethos/".$miner."-nvidia.txt ";
+		}
+
+		if ($driver == "fglrx" || $driver == "amdgpu") {
+			$config_string .= " --noNVIDIA --amd /var/run/ethos/".$miner."-amd.txt ";
+		}
+		
+		$config_string .= " --poolconf /var/run/ethos/".$miner."-pools.txt --config /var/run/ethos/".$miner."-config.txt ";
+	}
+
+        /*******************************
+        * XMRIG-AMD
+        ********************************/
+        if ($miner == "xmrig-amd") {
+                if(!preg_match("/-a/",$flags)) {
+                        $flags .= " -a cryptonight ";
+                }
+                $tworker = trim($worker, ". ");
+                //if there is a worker name, add the -r option
+                if ($tworker != "") {
+                        $tworker = "--rig-id " . $tworker;
+                }
+                $pools="-o $proxypool1 -u $proxywallet  $tworker -p $poolpass1 ";
+                $config_string .= " -c /opt/miners/xmrig-amd/config.txt";
+        }
+
+	/*******************************
+	* TDXMINER
+	********************************/
+	if ($miner == "tdxminer") {
+		$devices = implode(",",select_gpus());
+		if(trim(`/opt/ethos/sbin/ethos-readconf selectedgpus`)){
+	        	$mine_with = "-d $devices";
+		}
+
+		if(!preg_match("/-a lyra2z/",$flags)) {
+			$flags .= " -a lyra2z ";
+		}
+
+		$pools="-o $proxypool1 -u $proxywallet$worker -p $poolpass1 ";
+
+		if($proxypool2){
+			$pools .= " -o $proxypool2 -u $proxywallet$worker -p $poolpass2 ";
+		}
+	}
+
 	//begin wolf-xmr-cpu configuration
 	
 	if ($miner == "wolf-xmr-cpu"){
@@ -716,9 +892,10 @@ function start_miner()
 			$threads = trim(`nproc`);
 		}
 	}
-
 			    
 	//begin miner commandline buildup
+
+	$miner_path['avermore'] = "/usr/bin/screen -c /opt/ethos/etc/screenrc.avermore -dmS avermore /opt/miners/avermore/avermore";
 	$miner_path['dstm-zcash'] = "/usr/bin/screen -c /opt/ethos/etc/screenrc.dstm-zcash -l -L -dmS dstm-zcash /opt/miners/dstm-zcash/dstm-zcash";
 	$miner_path['ccminer'] = "/usr/bin/screen -c /opt/ethos/etc/screenrc.ccminer -l -L -dmS ccminer /opt/miners/ccminer/ccminer";
 	$miner_path['cgminer-skein'] = "/usr/bin/screen -c /opt/ethos/etc/screenrc.cgminer-skein -dmS cgminer-skein /opt/miners/cgminer-skein/cgminer-skein";		
@@ -727,17 +904,22 @@ function start_miner()
 	$miner_path['claymore-zcash'] = "/usr/bin/screen -c /opt/ethos/etc/screenrc.claymore-zcash -l -L -dmS claymore-zcash /opt/miners/claymore-zcash/claymore-zcash";
 	$miner_path['ethminer'] = "/opt/miners/ethminer/ethminer";
 	$miner_path['ewbf-zcash'] = "/usr/bin/screen -c /opt/ethos/etc/screenrc.ewbf-zcash -l -L -dmS ewbf-zcash /opt/miners/ewbf-zcash/ewbf-zcash";
+ 	$miner_path['nevermore'] = "/usr/bin/screen -c /opt/ethos/etc/screenrc.nevermore -l -L -dmS nevermore /opt/miners/nevermore/nevermore";
 	$miner_path['optiminer-zcash'] = "/bin/bash -c \" cd /opt/miners/optiminer-zcash && /usr/bin/screen -c /opt/ethos/etc/screenrc -dmS optiminer /opt/miners/optiminer-zcash/optiminer-zcash";
 	$miner_path['sgminer-gm'] = "/usr/bin/screen -c /opt/ethos/etc/screenrc.sgminer-gm -dmS sgminer /opt/miners/sgminer-gm/sgminer-gm";
 	$miner_path['sgminer-gm-xmr'] = "/usr/bin/screen -c /opt/ethos/etc/screenrc.sgminer-gm-xmr -dmS sgminer /opt/miners/sgminer-gm/sgminer-gm-xmr";
 	$miner_path['wolf-xmr-cpu'] = "/opt/miners/wolf-xmr-cpu/wolf-xmr-cpu";
-        $miner_path['tdxminer'] = "/usr/bin/screen -c /opt/ethos/etc/screenrc.tdxminer -l -L -dmS claymore /opt/miners/tdxminer/tdxminer";
-			
-
+	$miner_path['xmr-stak'] = "/usr/bin/screen -c /opt/ethos/etc/screenrc.xmr-stak -l -L -dmS xmr-stak /opt/miners/xmr-stak/xmr-stak";
+	$miner_path['xtl-stak'] = "/usr/bin/screen -c /opt/ethos/etc/screenrc.xtl-stak -l -L -dmS xtl-stak /opt/miners/xtl-stak/xtl-stak";
+	$miner_path['tdxminer'] = "/usr/bin/screen -c /opt/ethos/etc/screenrc.tdxminer -l -L -dmS tdxminer /opt/miners/tdxminer/tdxminer";
+	$miner_path['ewbf-equihash'] = "/usr/bin/screen -c /opt/ethos/etc/screenrc.ewbf-equihash -l -L -dmS ewbf-equihash /opt/miners/ewbf-equihash/ewbf-equihash";
+        $miner_path['xmrig-amd'] = "/usr/bin/screen -c /opt/ethos/etc/screenrc.xmrig-amd -l -L -dmS xtl-stak /opt/miners/xmrig-amd/xmrig-amd";
+		
 			
 	$start_miners = select_gpus();
 
 	foreach($start_miners as $start_miner) {
+		$miner_params['avermore'] = "$config_string";
 		$miner_params['dstm-zcash'] = $api ." ". $flags ." ". $pools;
 		$miner_params['ccminer'] = $flags ." ". $pools;
 		$miner_params['cgminer-skein'] = "-c /var/run/ethos/sgminer.conf";
@@ -746,11 +928,18 @@ function start_miner()
 		$miner_params['claymore-zcash'] = "$config_string";
 		$miner_params['ethminer'] = $minermode . " " . $pool . " " . $gpumode . " --dag-load-mode sequential " . $flags . " " . $extraflags . " " . $selecteddevicetype . " " . $start_miner;
 		$miner_params['ewbf-zcash'] = "--config /var/run/ethos/ewbf-zcash.conf";
+		$miner_params['nevermore'] = $flags ." ". $pools;
 		$miner_params['sgminer-gm'] = "-c /var/run/ethos/sgminer.conf";
 		$miner_params['sgminer-gm-xmr'] = "-c /var/run/ethos/sgminer.conf";
 		$miner_params['optiminer-zcash'] = "-s $proxypool1 -u $proxywallet$worker -p $poolpass1 --log-file /var/run/miner.output";
 		$miner_params['wolf-xmr-cpu'] = "-o $proxypool1 -p $poolpass1 -u $proxywallet$worker -t $threads";
-		
+		$miner_params['xmr-stak'] = $flags ." ". $config_string ." ". $pools;
+		$miner_params['xtl-stak'] = $flags ." ". $config_string ." ". $pools;
+                $miner_params['xmrig-amd'] = $flags.$pools.$config_string;
+		$miner_params['tdxminer'] = $flags ." ". $pools;
+		$miner_params['ewbf-equihash'] = "--config /var/run/ethos/ewbf-equihash.conf";
+
+		$miner_suffix['avermore'] = " " . $mine_with . " " . $extraflags;
 		$miner_suffix['dstm-zcash'] = " " . $mine_with . " " . $extraflags;
 		$miner_suffix['ccminer'] = " " . $mine_with . " " . $extraflags;
 		$miner_suffix['cgminer-skein'] = " " . $mine_with . " " . $extraflags;
@@ -759,11 +948,15 @@ function start_miner()
 		$miner_suffix['claymore-zcash'] = " " . $extraflags;
 		$miner_suffix['ethminer'] = " 2>&1 | /usr/bin/tee -a /var/run/miner.output >> /var/run/miner.$start_miner.output &";
 		$miner_suffix['ewbf-zcash'] = "";
+		$miner_suffix['ccminer'] = " " . $mine_with . " " . $extraflags;
 		$miner_suffix['sgminer-gm'] = " " . $mine_with . " " . $extraflags;
 		$miner_suffix['sgminer-gm-xmr'] = " " . $mine_with ." ". $extraflags;
 		$miner_suffix['optiminer-zcash'] = " " . $mine_with ." " . $extraflags ." \\\"";
 		$miner_suffix['wolf-xmr-cpu'] = " 2>&1 | /usr/bin/tee -a /var/run/miner.output &";
-                $miner_params['tdxminer'] = $flags ." ". $pools;
+		$miner_suffix['xmr-stak'] = " " . $extraflags;
+		$miner_suffix['xtl-stak'] = " " . $extraflags;
+		$miner_suffix['tdxminer'] = " " . $mine_with . " " . $extraflags;
+		$miner_suffix['ewbf-equihash'] = "";
 		
 		$command = "su - ethos -c \"" . escapeshellcmd($miner_path[$miner] . " " . $miner_params[$miner]) . " $miner_suffix[$miner]\"";
 		$command = str_replace('\#',"#",$command);

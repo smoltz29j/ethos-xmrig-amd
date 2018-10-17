@@ -115,7 +115,7 @@ function check_alive($hashes) {
 	$mem = trim(`/opt/ethos/sbin/ethos-readdata mem`);
 	$crashed = array();
 	$mems = explode(" ", $mem);
-	$miner = trim(`/opt/ethos/sbin/ethos-readconf miner`);
+
 
 	foreach($gpus as $i) {
 		$m = ((isset($mems[$i])) ? $mems[$i] : 0);
@@ -131,15 +131,9 @@ function check_alive($hashes) {
 					break;
 
 				case "amdgpu":
-        				if($miner == "tdxminer") {
-                                                if ($m > 20000 || $m == 500) {
-                                                        $crashed[] = $i;
-                                                }
-				        } else {
-                                        	if ($m < 1000 || $m > 20000 || $m == 500) {
-                                                	$crashed[] = $i;
-						}
-                                        }
+					if (($m < 601 && $m != 500) || $m > 20000)  {
+						$crashed[] = $i;
+					}
 					break;
 
 				case "nvidia":
@@ -167,16 +161,20 @@ function get_hashrates(){
 			$tail = 400;
 	}
 	
-	if($miner == "ccminer") {
+	if($miner == "ccminer" || $miner == "nevermore" ) {
 		`echo "threads|" | socat stdio tcp-connect:127.0.0.1:4068 > /var/run/ethos/miner.dump`;
 		preg_match_all("/KHS=(\d+\.\d+)/", @file_get_contents("/var/run/ethos/miner.dump"), $ccminer_hashes);
+	}
+	if ($miner == "xmrig-amd") {
+		$data = json_decode(file_get_contents('http://127.0.0.1:12345'), true);
+		$data = $data[hashrate][threads];
 	}
 
 	if($miner == "dstm-zcash") {
 		$dstmstats = json_decode(`echo "|stats" |socat -t 15 stdio tcp-connect:127.0.0.1:2222`, true);
 	}
 
-	if($miner == "sgminer-gm" || $miner == "cgminer-skein" ){
+	if($miner == "sgminer-gm" || $miner == "cgminer-skein" || $miner == "avermore" ){
 		`echo "devs|" | socat -t 15 stdio tcp-connect:127.0.0.1:4028 > /var/run/ethos/miner.dump`;
 		$sgminer_5s = explode(" ",trim(`cat /var/run/ethos/miner.dump | tr ',' '\n' | grep -a "MHS 5s" | cut -d"=" -f2 | xargs`));
 		$sgminer_hwerror = trim(`cat /var/run/ethos/miner.dump | tr ',' '\n' | grep -a "Hardware Errors"| cut -d"=" -f2 | xargs`);
@@ -187,7 +185,7 @@ function get_hashrates(){
 		$sgminer_5s = explode(" ",trim(`cat /var/run/ethos/miner.dump | tr ',' '\n' | grep -a "KHS 5s" | cut -d"=" -f2 | awk '{print \$1*1000}'| xargs`));
 		$sgminer_hwerror = trim(`cat /var/run/ethos/miner.dump | tr ',' '\n' | grep -a "Hardware Errors"| cut -d"=" -f2 | xargs`);
 	}
-	if($miner == "ewbf-zcash"){
+	if(preg_match("/ewbf-(zcash|equihash)/", $miner)){
 		$ewbfstats = array();
 		$raw_ewbfstats = @json_decode(@file_get_contents("http://127.0.0.1:42000/getstat"),TRUE);		
 		foreach(array_keys($raw_ewbfstats['result']) as $i) {
@@ -196,7 +194,7 @@ function get_hashrates(){
   		}
 	}
 	for($i = 0;$i < $instances; $i++){
-		if($miner == "ccminer"){
+		if($miner == "ccminer" || $miner == "nevermore" ){
 			
 			$multiplier = 1;
 			
@@ -208,6 +206,13 @@ function get_hashrates(){
 			}
 			
 			$raw = $ccminer_hashes[1][$i] * $multiplier;
+		}
+		if($miner == "xmrig-amd") {
+			if (count($data)/$instances == 2) {
+				$raw = $data[$i*2][0] + $data[($i*2)+1][0];
+			} else {
+				$raw = $data[$i][0];
+			}
 		}
 
 		if(preg_match("/claymore/",$miner)){
@@ -241,7 +246,7 @@ function get_hashrates(){
 `);
 		}
 		
-		if($miner == "ewbf-zcash"){
+		if(preg_match("/ewbf-(zcash|equihash)/", $miner)){
 			$raw = $ewbfstats[$i];
   			if (!$ewbfstats[$i] || !isset($ewbfstats[$i])) {
 				$raw = 0;
@@ -252,15 +257,12 @@ function get_hashrates(){
 			$raw = trim(`tail -400 /var/run/miner.output | grep -Poi "(?<=\[GPU$i\]\s\s)(\d+\.\d+\sI\/s\s)(\d+.\d+)" | cut -d" " -f 3 | awk '{ sum += $1; n++ } END { if (n > 0) printf "%.2f",sum / n; }'`);	
 		}
 
-		if($miner == "tdxminer"){
-			$raw = trim(`tail -100 /var/run/miner.output | grep -Poi "GPU $i - lyra2z: [0-9]+\.[0-9]+Mh\/s" | grep -Poi "[0-9]+\.[0-9]+" | tail -1`);	
-		}
 		
 		if($miner == "wolf-xmr-cpu"){
 			$raw = trim(`tail -300 /var/run/miner.output | grep accepted | cut -d "," -f 2 | cut -d " " -f 2 | tail -100 | awk '{ sum += $1; n++ } END { if (n > 0) printf "%.2f",sum / n; }'`)/$instances;
 		}
 		
-		if(preg_match("/sgminer/",$miner)){
+		if(preg_match("/(sgminer|cgminer|avermore)/",$miner)){
 
 			$check_gpu = $i+1;
 
@@ -271,6 +273,22 @@ function get_hashrates(){
 				$raw = $sgminer_5s[$i];
 				file_put_contents("/var/run/miner.output","gpu".$i." ".$sgminer_5s[$i]."\n",FILE_APPEND);
 				file_put_contents("/var/run/ethos/hwerror.file", "$sgminer_hwerror");
+			}
+		}
+
+		if(preg_match("/(xmr|xtl)-stak/",$miner)){
+			$raw = trim(`tail -400 /var/run/miner.output | grep -Poi "\|\s+$i\s+\|\s+(\(na\)|[0-9.]+)\s+\|\s+(\(na\)|[0-9.]+)\s+\|" | sed 's/ //g' | sed 's/(na)/0/g' | cut -d"|" -f3 | awk '{ sum += $1; n++ } END { if (n > 0) printf "%.2f",sum / n; }'`);
+
+			if ($raw == "") {
+				$raw = 0;
+			}
+		}
+
+		if ($miner == "tdxminer") {
+			$raw = trim(`tail -300 /var/run/miner.output | grep -Poi "(?<=GPU $i - lyra2z\: )([0-9.]*)Mh\/s " | sed 's/Mh\/s//g' | awk '{ sum += $1; n++ } END { if (n > 0) printf "%.2f",sum / n; }'`);
+
+			if ($raw == "") {
+				$raw = 0;
 			}
 		}
 

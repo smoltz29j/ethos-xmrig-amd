@@ -28,10 +28,10 @@ fi
 f.validminers(){
 		case "$DRIVER" in
 			amdgpu | fglrx )
-				VALIDMINERS="claymore claymore-xmr claymore-zcash cgminer-skein ethminer optiminer-zcash sgminer-gm sgminer-gm-xmr tdxminer"
+				VALIDMINERS="avermore claymore claymore-xmr claymore-zcash cgminer-skein ethminer optiminer-zcash sgminer-gm sgminer-gm-xmr xmr-stak xtl-stak tdxminer xmrig-amd"
 			;;
 			nvidia )
-				VALIDMINERS="ccminer claymore dstm-zcash ewbf-zcash ethminer optiminer-zcash"
+				VALIDMINERS="ccminer claymore dstm-zcash ethminer ewbf-equihash ewbf-zcash nevermore optiminer-zcash xmr-stak xtl-stak"
 			;;
 			cpu )
 				VALIDMINERS="wolf-xmr-cpu"
@@ -215,7 +215,7 @@ case "$1" in
 	maxtemp | globalmaxtemp )
 		MAXGPUTEMP=$(grep -m 1 -Poi "^\s*mxt\s+$HOSTNAME\s+\K(.*)(?=#?)" "$CONF" | xargs)
 		if [ -z "$MAXGPUTEMP" ]; then
-			MAXGPUTEMP=$(grep -m 1 -Poi "^\s*maxtemp\s+\K(.*)(?=#?)" "$CONF" | xargs)
+			MAXGPUTEMP=$(grep -m 1 -Poi "^\s*(maxtemp|maxgputemp)\s+\K(.*)(?=#?)" "$CONF" | xargs)
 		fi
 		if [ -z "$MAXGPUTEMP" ]; then
 			MAXGPUTEMP="85"
@@ -252,7 +252,7 @@ case "$1" in
 					PID=$(ps aux | grep "$MINER" | tr -s "[:space:]" | grep -w "\-\-cuda\-devices $GPUNUM" | grep -m 1 -Poi "(?<=ethos.)(\d+)" | xargs)
 				fi
 			;;
-			ccminer | cgminer-skein | claymore | claymore-xmr | claymore-zcash | dstm-zcash | ewbf-zcash | sgminer-gm | optiminer-zcash | tdxminer)
+			avermore | ccminer | cgminer-skein | claymore | claymore-xmr | claymore-zcash | dstm-zcash | ewbf-equihash | ewbf-zcash | nevermore | optiminer-zcash | sgminer-gm | xmr-stak | xtl-stak | tdxminer | xmrig-amd)
 				PID=$(ps aux | grep -v grep | grep -v screen | grep "$MINER" | tr -s "[:space:]" | grep -m 1 -Poi "(?<=ethos.)(\d+)" | xargs)
 			;;
 			sgminer-gm-xmr )
@@ -266,7 +266,7 @@ case "$1" in
 		POOL=$(grep -m 1 -Poi "^\s*pool\s+\K(.*)" "$CONF" | cut -d "/" -f 3 | xargs)
 		echo "$POOL"
 	;;
-	poolemail )		
+	poolemail )
 		f.poolemail
 		echo "$POOLEMAIL"	
 	;;
@@ -289,7 +289,7 @@ case "$1" in
 	;;
 	poolpass3 )
 		f.poolpass "3"
-		echo "${POOLPASS[3]}"	
+		echo "${POOLPASS[3]}"
 	;;
 	poolpass4 )
 		f.poolpass "4"
