@@ -860,7 +860,7 @@ function start_miner()
                 if ($tworker != "") {
                         $tworker = "--rig-id " . $tworker;
                 }
-                $pools="-o $proxypool1 -u $proxywallet  $tworker -p $poolpass1 ";
+                $pools="-o $proxypool1 -u $proxywallet$worker $tworker -p $poolpass1 ";
                 $config_string .= " -c /opt/miners/xmrig-amd/config.txt";
         }
 
